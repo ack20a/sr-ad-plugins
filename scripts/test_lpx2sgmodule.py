@@ -16,6 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import lpx2sgmodule as C  # noqa: E402
+import merge_sgmodule as M  # noqa: E402
 
 SOURCES = {
     "BlockAdvertisers": ("BlockAdvertisers.lpx", "https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx"),
@@ -131,6 +132,63 @@ class RoundTrip(unittest.TestCase):
         s, u = self.check("BiliBili.ADBlock")
         self.assertEqual((s["url_rewrite"], s["body_rewrite"], s["map_local"], s["script"],
                           s["mitm_hosts"], s["argument"], len(u)), (6, 1, 2, 16, 13, 31, 0))
+
+
+class Merge(unittest.TestCase):
+    def test_youtube(self):
+        texts = {}
+        for fname, _u, _l in M.MERGES["YouTube"]["sources"]:
+            with open(os.path.join(ROOT, "upstream", fname), encoding="utf-8-sig") as f:
+                texts[fname] = f.read()
+        out = M.merge("YouTube", texts)
+        with open(os.path.join(ROOT, "modules", "YouTube.sgmodule"), encoding="utf-8") as f:
+            self.assertEqual(out, f.read(), "YouTube: committed module is stale, regenerate it")
+        sg = sections(out)
+        kelee = sections(C.convert(texts["YouTube_remove_ads.lpx"], M.MERGES["YouTube"]["sources"][0][1])[0])
+        dual = sections(texts["DualSubs.YouTube.sgmodule"])
+        live = lambda d, sec: [l for l in d.get(sec, []) if not l.startswith("#")]  # noqa: E731
+        # every script of both sources, ad-block first (DualSubs guide: ad-block gets priority)
+        self.assertEqual(live(sg, "script"), live(kelee, "script") + live(dual, "script"))
+        self.assertEqual(len(live(sg, "script")), 3 + 12)
+        # every upstream rule kept, plus the QUIC blocks
+        for r in live(dual, "rule"):
+            self.assertIn(r, live(sg, "rule"))
+        self.assertIn("AND,((DOMAIN-SUFFIX,googlevideo.com),(PROTOCOL,UDP)),REJECT-NO-DROP", live(sg, "rule"))
+        # MITM: union of both host lists (incl. the -redirector exclusion) + h2
+        hosts = lambda d: [h.strip() for l in d.get("mitm", []) if l.lower().startswith("hostname")  # noqa: E731
+                           for h in l.split("=", 1)[1].replace("%APPEND%", "").split(",") if h.strip()]
+        self.assertEqual(set(hosts(sg)), set(hosts(kelee)) | set(hosts(dual)))
+        self.assertIn("-redirector*.googlevideo.com", hosts(sg))
+        self.assertIn("h2 = true", sg["mitm"])
+        # arguments: both sets, captionLang handed to DualSubs
+        args = M.parse_arguments(re.search(r"^#!arguments=(.*)$", out, re.M).group(1))
+        self.assertEqual(list(args), ["blockUpload", "blockShorts", "blockImmersive", "captionLang", "debug",
+                                      "Type", "Types", "AutoCC", "Position", "Vendor", "ShowOnly", "LogLevel"])
+        self.assertEqual(args["captionLang"], "off")
+        for k in re.findall(r"\{\{\{([^{}]+)\}\}\}", out):
+            self.assertIn(k, args)
+        # the ad-block scripts JSON.parse($argument): must be valid JSON with real booleans
+        import json
+        for l in live(kelee, "script"):
+            a = re.search(r',argument="(.*)"$', l).group(1)
+            a = re.sub(r"\{\{\{([^{}]+)\}\}\}", lambda m: args[m.group(1)].strip('"'), a)
+            obj = json.loads(a)
+            self.assertIn("captionLang", obj)
+            for k in ("blockUpload", "blockShorts", "debug"):
+                if k in obj:
+                    self.assertIsInstance(obj[k], bool, k)
+            self.assertIn("max-size=-1", l)
+
+    def test_duplicate_argument_is_an_error(self):
+        recipe = dict(M.MERGES["YouTube"], sources=[("a.sgmodule", "u", "A"), ("b.sgmodule", "u", "B")],
+                      argument_defaults={}, extra={})
+        M.MERGES["_t"] = recipe
+        try:
+            with self.assertRaises(ValueError):
+                M.merge("_t", {"a.sgmodule": "#!arguments=x:1\n[Rule]\nDOMAIN,a,REJECT\n",
+                               "b.sgmodule": "#!arguments=x:2\n[Rule]\nDOMAIN,b,REJECT\n"})
+        finally:
+            del M.MERGES["_t"]
 
 
 def conv(body, header="#!name=t\n", url="https://kelee.one/x.lpx"):
@@ -265,6 +323,18 @@ class Units(unittest.TestCase):
         self.assertEqual((s["url_rewrite"], len(u)), (1, 1))
         out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Other.lpx")  # other plugins untouched
         self.assertEqual((s["url_rewrite"], len(u)), (2, 0))
+
+    def test_json_argument_style_and_max_size(self):
+        body = ("[Argument]\nsw=switch, false, true, tag=S\nlang=select, \"zh-Hans\", \"off\", tag=L\n"
+                "[Script]\nhttp-response ^https://a script-path=https://s/a.js, requires-body=true, "
+                "argument=[{sw},{lang}], tag=A\n")
+        out, *_ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/YouTube_remove_ads.lpx")
+        self.assertEqual(section(out, "Script"), [
+            'A = type=http-response,pattern=^https://a,requires-body=1,script-path=https://s/a.js,max-size=-1,'
+            'argument="{"sw":{{{sw}}},"lang":"{{{lang}}}"}"'])
+        out, *_ = conv(body)  # default: query string, no max-size
+        self.assertTrue(section(out, "Script")[0].endswith('script-path=https://s/a.js,'
+                                                          'argument="sw={{{sw}}}&lang={{{lang}}}"'))
 
     def test_header_rewrite(self):
         out, *_ = conv("[Rewrite]\n^https://a response-header-add X-A 1 X-B 2\n^https://b header-del Cookie\n")

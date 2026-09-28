@@ -1,6 +1,6 @@
 # sr-ad-plugins
 
-从 Loon 插件转换而来的 **Shadowrocket 模块 (`.sgmodule`)**，来源包括 [可莉 (kelee.one)](https://hub.kelee.one/) 和 [Biliverse](https://github.com/Biliverse/ADBlock)。
+从 Loon 插件转换而来的 **Shadowrocket 模块 (`.sgmodule`)**，来源包括 [可莉 (kelee.one)](https://hub.kelee.one/)、[Biliverse](https://github.com/Biliverse/ADBlock) 和 [DualSubs](https://github.com/DualSubs/YouTube)。
 
 规则和脚本的版权归原作者所有。本仓库只做格式转换，不改规则内容；脚本仍然从原作者的地址加载。
 
@@ -12,6 +12,7 @@
 | HTTPDNS拦截器 | 拦截常见的 HTTPDNS 服务，让 App 的域名解析回到代理工具的 DNS 框架里，是其他去广告模块的依赖 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Block_HTTPDNS.sgmodule` | [Block_HTTPDNS.lpx](https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx) | 可莉🅥、[VirgilClyne](https://github.com/VirgilClyne) |
 | 百度贴吧去广告 | 移除开屏、信息流和帖内广告，精简侧拉抽屉和「我的」页面 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Tieba_remove_ads.sgmodule` | [Tieba_remove_ads.lpx](https://kelee.one/Tool/Loon/Lpx/Tieba_remove_ads.lpx) | 可莉🅥、[app2smile](https://github.com/app2smile) |
 | 📺 BiliBili: 🛡️ ADBlock | 哔哩哔哩去广告，可以自定义去除 App 内的界面元素 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/BiliBili.ADBlock.sgmodule` | [BiliBili.ADBlock.plugin（最新 release）](https://github.com/Biliverse/ADBlock/releases/latest/download/BiliBili.ADBlock.plugin)，[项目主页](https://biliverse.github.io/guide/ad-block) | [Biliverse](https://github.com/Biliverse/ADBlock)：[ClydeTime](https://github.com/ClydeTime)、[VirgilClyne](https://github.com/VirgilClyne)、[app2smile](https://github.com/app2smile)、[RuCu6](https://github.com/RuCu6)、[Maasea](https://github.com/Maasea) |
+| YouTube 去广告 + 双语字幕 | 可莉的 YouTube 去广告（视频/瀑布流/搜索/Shorts 广告、隐藏底栏按钮、画中画、后台播放）和 DualSubs 的双语字幕、歌词翻译合并成一个模块 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/YouTube.sgmodule` | [YouTube_remove_ads.lpx](https://kelee.one/Tool/Loon/Lpx/YouTube_remove_ads.lpx) + [DualSubs.YouTube.sgmodule（最新 release）](https://github.com/DualSubs/YouTube/releases/latest/download/DualSubs.YouTube.sgmodule) | 可莉🅥、[Maasea](https://github.com/Maasea)、[VirgilClyne](https://github.com/VirgilClyne)（DualSubs）、Choler、DivineEngine、app2smile |
 
 直接点击：
 
@@ -19,6 +20,7 @@
 - [Block_HTTPDNS.sgmodule](https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Block_HTTPDNS.sgmodule)
 - [Tieba_remove_ads.sgmodule](https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Tieba_remove_ads.sgmodule)
 - [BiliBili.ADBlock.sgmodule](https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/BiliBili.ADBlock.sgmodule)
+- [YouTube.sgmodule](https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/YouTube.sgmodule)
 
 > Biliverse 官方也发布了 Surge 版模块 [BiliBili.ADBlock.sgmodule](https://github.com/Biliverse/ADBlock/releases/latest/download/BiliBili.ADBlock.sgmodule)。本仓库的版本是从它的 Loon 插件转换来的，和 Loon 版的内容一一对应。
 
@@ -30,6 +32,11 @@
 - **模块参数**：贴吧和 BiliBili 模块带有 `#!arguments` 参数，对应 Loon 插件里的 `[Argument]`，默认值和 Loon 一致。可以在 Shadowrocket 的模块详情里修改。
 - BiliBili 模块的 `[MITM]` 带有 `h2 = true`，也就是通过 HTTP/2 解密，gRPC 接口需要它。这需要 Shadowrocket 2.2.81 或以上版本。
 - `[Body Rewrite]` 里的 `http-response-jq` 需要较新版本的 Shadowrocket。
+- **YouTube 模块**：
+  - 已经包含 DualSubs 的全部内容，**不要再另外安装 DualSubs 或其他 YouTube 去广告模块**，否则脚本会重复处理同一个请求。
+  - 去广告脚本排在 DualSubs 前面，这是 [DualSubs 文档](https://dualsubs.github.io/guide/youtube) 要求的顺序（去广告模块优先级要更高）。
+  - 字幕翻译交给 DualSubs 处理，所以去广告脚本自带的字幕翻译 `captionLang` 默认改成了 `off`（Maasea 自己的 Surge 模块也是这个默认值），避免同一条字幕被翻译两次。
+  - 可莉的 Loon 插件要求开启「MitM over HTTP/2」和「QUIC 回退保护」。模块里用 `h2 = true` 和两条阻断 YouTube UDP 的规则代替。
 
 ## 转换时做的适配
 
@@ -56,12 +63,27 @@
 | --- | --- | --- |
 | 百度贴吧去广告 | `tiebac.baidu.com` / `tieba.baidu.com` 的 `/c/f/search/discover` → `reject-dict` | 在 Shadowrocket 下会导致贴吧一登录就被踢出（已在真机上逐条排查确认）。去掉后只是搜索发现页不再被拦截，去广告功能不受影响 |
 
+### 合并模块（`scripts/merge_sgmodule.py`）
+
+YouTube 模块由两个上游合并而来，合并方式写在 `merge_sgmodule.py` 的 `MERGES` 里：
+
+- 按来源顺序拼接各个段，排在前面的来源脚本优先；`[MITM]` 的主机名取并集；`#!arguments` 合并在一起，两个来源有重名参数会直接报错，不会悄悄覆盖。
+- Loon 插件先用 `lpx2sgmodule.py` 转换，有任何 UNCONVERTED 条目都会报错。Surge 模块原样使用。
+- 合并时额外做的改动（参数默认值、补充的规则、`h2`）都写在 `MERGES` 里，模块头部也有注释说明。
+
+另外，可莉的 YouTube 脚本在 Shadowrocket 下是用 `JSON.parse($argument)` 读参数的，所以 `lpx2sgmodule.py` 的 `LOCAL_SCRIPT_OPTIONS` 给它单独配置了：
+
+- `argument` 转成 JSON，开关类参数不加引号，因为字符串 `"false"` 在 JS 里是真值；
+- 加上 `max-size=-1`，因为 YouTube 的 browse/next 响应很大，超过默认大小限制时脚本会被跳过。
+
+这两点和 Maasea 官方的 Surge 模块一致。
+
 ## 目录结构
 
 ```
 modules/    转换后的 Shadowrocket 模块
 upstream/   上游 Loon 插件原文件（方便以后 diff 同步）
-scripts/    转换脚本 lpx2sgmodule.py 及测试 test_lpx2sgmodule.py
+scripts/    转换脚本 lpx2sgmodule.py、合并脚本 merge_sgmodule.py 及测试 test_lpx2sgmodule.py
 ```
 
 ## 同步上游
@@ -76,15 +98,19 @@ done
 u=https://github.com/Biliverse/ADBlock/releases/latest/download/BiliBili.ADBlock.plugin
 curl -sSL -o upstream/BiliBili.ADBlock.plugin "$u"
 python3 scripts/lpx2sgmodule.py upstream/BiliBili.ADBlock.plugin modules/BiliBili.ADBlock.sgmodule "$u"
+curl -sSL -A "$UA" -o upstream/YouTube_remove_ads.lpx https://kelee.one/Tool/Loon/Lpx/YouTube_remove_ads.lpx
+curl -sSL -o upstream/DualSubs.YouTube.sgmodule https://github.com/DualSubs/YouTube/releases/latest/download/DualSubs.YouTube.sgmodule
+python3 scripts/merge_sgmodule.py YouTube modules/YouTube.sgmodule
 python3 scripts/test_lpx2sgmodule.py   # 条目计数对账 + 边界用例
 git diff
 ```
 
-测试会逐个模块核对「上游条目数 = 转换后的条目数 + UNCONVERTED 条目数」（规则、重写、脚本、MITM 主机、参数），并检查 `modules/` 里的文件和重新生成的结果完全一致。
+测试会逐个模块核对「上游条目数 = 转换后的条目数 + UNCONVERTED 条目数」（规则、重写、脚本、MITM 主机、参数），并检查 `modules/` 里的文件和重新生成的结果完全一致。YouTube 合并模块还会检查两个来源的脚本、规则、MITM 主机是否全部保留，以及去广告脚本收到的参数在填入默认值后是不是合法的 JSON。
 
 ## 致谢
 
 - 规则/脚本作者：[可莉🅥](https://github.com/luestr/ProxyResource/blob/main/README.md)、[VirgilClyne](https://github.com/VirgilClyne)（HTTPDNS）、[app2smile](https://github.com/app2smile)（贴吧）
 - BiliBili ADBlock：[Biliverse/ADBlock](https://github.com/Biliverse/ADBlock)（ClydeTime、VirgilClyne、app2smile、RuCu6、Maasea）
+- YouTube：[Maasea/sgmodule](https://github.com/Maasea/sgmodule)（去广告脚本，经可莉插件引用）、[DualSubs/YouTube](https://github.com/DualSubs/YouTube)（VirgilClyne）
 - 插件中心：<https://hub.kelee.one/>
 - 转换规则参考：[Script-Hub](https://github.com/Script-Hub-Org/Script-Hub)
