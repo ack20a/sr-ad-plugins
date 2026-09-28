@@ -10,7 +10,7 @@
 | --- | --- | --- | --- | --- |
 | 广告平台拦截器 | 拦截各大广告平台/SDK 的广告与统计请求，是其他去广告模块的依赖，建议排在最前面 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/BlockAdvertisers.sgmodule` | [BlockAdvertisers.lpx](https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx) | [可莉🅥](https://github.com/luestr/ProxyResource/blob/main/README.md) |
 | HTTPDNS拦截器 | 拦截常见的 HTTPDNS 服务，让 App 的域名解析回到代理工具的 DNS 框架里，是其他去广告模块的依赖 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Block_HTTPDNS.sgmodule` | [Block_HTTPDNS.lpx](https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx) | 可莉🅥、[VirgilClyne](https://github.com/VirgilClyne) |
-| 百度贴吧去广告 | 移除开屏、信息流和帖内广告，精简侧拉抽屉和「我的」页面 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Tieba_remove_ads.sgmodule` | [Tieba_remove_ads.lpx](https://kelee.one/Tool/Loon/Lpx/Tieba_remove_ads.lpx) | 可莉🅥、[app2smile](https://github.com/app2smile) |
+| 百度贴吧去广告（精简版） | **不解密**，只保留域名规则。贴吧会拒绝被解密的连接（解密后无法登录），所以原插件里的开屏/信息流/帖内去广告都用不了，去广告效果有限，见下方说明 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/Tieba_remove_ads.sgmodule` | [Tieba_remove_ads.lpx](https://kelee.one/Tool/Loon/Lpx/Tieba_remove_ads.lpx) | 可莉🅥、[app2smile](https://github.com/app2smile) |
 | 📺 BiliBili: 🛡️ ADBlock | 哔哩哔哩去广告，可以自定义去除 App 内的界面元素 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/BiliBili.ADBlock.sgmodule` | [BiliBili.ADBlock.plugin（最新 release）](https://github.com/Biliverse/ADBlock/releases/latest/download/BiliBili.ADBlock.plugin)，[项目主页](https://biliverse.github.io/guide/ad-block) | [Biliverse](https://github.com/Biliverse/ADBlock)：[ClydeTime](https://github.com/ClydeTime)、[VirgilClyne](https://github.com/VirgilClyne)、[app2smile](https://github.com/app2smile)、[RuCu6](https://github.com/RuCu6)、[Maasea](https://github.com/Maasea) |
 | YouTube 去广告 + 双语字幕 | 可莉的 YouTube 去广告（视频/瀑布流/搜索/Shorts 广告、隐藏底栏按钮、画中画、后台播放）和 DualSubs 的双语字幕、歌词翻译合并成一个模块 | `https://raw.githubusercontent.com/ack20a/sr-ad-plugins/main/modules/YouTube.sgmodule` | [YouTube_remove_ads.lpx](https://kelee.one/Tool/Loon/Lpx/YouTube_remove_ads.lpx) + [DualSubs.YouTube.sgmodule（最新 release）](https://github.com/DualSubs/YouTube/releases/latest/download/DualSubs.YouTube.sgmodule) | 可莉🅥、[Maasea](https://github.com/Maasea)、[VirgilClyne](https://github.com/VirgilClyne)（DualSubs）、Choler、DivineEngine、app2smile |
 
@@ -29,7 +29,8 @@
 - 模块里有 `[URL Rewrite]`、`[Body Rewrite]`、`[Map Local]`、`[Script]` 和 `[MITM]`，所以要在 Shadowrocket 里**生成并信任 HTTPS 解密证书**，并打开 HTTPS 解密。
 - Shadowrocket 默认只在「全局路由 = 配置」时执行 `reject` 类 URL 重写。想在代理、直连模式下也生效，可以在配置的 `[General]` 里加上 `always-reject-url-rewrite = true`。
 - 两个拦截器模块都是「依赖」类，建议放在模块列表的最上面。
-- **模块参数**：贴吧和 BiliBili 模块带有 `#!arguments` 参数，对应 Loon 插件里的 `[Argument]`，默认值和 Loon 一致。可以在 Shadowrocket 的模块详情里修改。
+- **模块参数**：贴吧和 BiliBili 模块带有 `#!arguments` 参数，对应 Loon 插件里的 `[Argument]`，默认值和 Loon 一致。可以在 Shadowrocket 的模块详情里修改。贴吧精简版里的参数只对已经注释掉的脚本起作用，目前改了也没有效果。
+- **贴吧**：只要解密 `tiebac.baidu.com`，贴吧就会弹出「用户未登录或登录失败」然后被踢出。真机测试时，只解密、不做任何改写也会这样，原作者 app2smile 自己的 Shadowrocket 模块也一样，所以不是转换的问题。因此贴吧模块改成了不解密的精简版。如果以前在别的模块或配置里给贴吧开过解密，也要一起去掉。
 - BiliBili 模块的 `[MITM]` 带有 `h2 = true`，也就是通过 HTTP/2 解密，gRPC 接口需要它。这需要 Shadowrocket 2.2.81 或以上版本。
 - `[Body Rewrite]` 里的 `http-response-jq` 需要较新版本的 Shadowrocket。
 - **YouTube 模块**：
@@ -61,7 +62,7 @@
 
 | 模块 | 注释掉的规则 | 原因 |
 | --- | --- | --- |
-| 百度贴吧去广告 | `tiebac.baidu.com` / `tieba.baidu.com` 的 `/c/f/search/discover` → `reject-dict` | 在 Shadowrocket 下会导致贴吧一登录就被踢出（已在真机上逐条排查确认）。去掉后只是搜索发现页不再被拦截，去广告功能不受影响 |
+| 百度贴吧去广告 | `[MitM]` 的 `tiebac.baidu.com, tieba.baidu.com`，以及所有针对这两个域名 https 流量的改写、jq、Map Local 和 `tieba-proto.js` 脚本（共 17 条上游条目） | 真机测试：只解密 `tiebac.baidu.com`、什么都不改，贴吧也会登录失败并被踢出，原作者的模块同样如此。不解密时这些条目本来就不会生效，所以一起注释掉。仍然生效的只有两条域名规则和明文 http 的 `hotforum` 拦截 |
 
 ### 合并模块（`scripts/merge_sgmodule.py`）
 
