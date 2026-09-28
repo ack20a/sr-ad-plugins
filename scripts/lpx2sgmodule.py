@@ -47,6 +47,16 @@ LOCAL_DISABLE = {
     ],
 }
 
+# Per-upstream [Script] options, keyed by upstream file name.
+#   argument: "json" -> argument=[{a},{b}] becomes a JSON object (switch values bare,
+#             others quoted) for scripts that JSON.parse($argument) outside Loon.
+#   max-size: default max-size for scripts that do not set one.
+LOCAL_SCRIPT_OPTIONS = {
+    # Maasea's YouTube scripts: JSON.parse($argument) on Surge-like clients, and
+    # browse/next bodies exceed the default size limit (Maasea's own module: max-size=-1).
+    "YouTube_remove_ads.lpx": {"argument": "json", "max-size": "-1"},
+}
+
 
 class Unsupported(ValueError):
     pass
@@ -384,7 +394,7 @@ def parse_script_opts(rest):
     return opts
 
 
-def conv_argument(v, args):
+def conv_argument(v, args, style="query"):
     """Loon argument -> Shadowrocket argument string."""
     m = re.fullmatch(r"\[(.*)\]", v.strip())
     if m:
@@ -394,6 +404,11 @@ def conv_argument(v, args):
             if not km or km.group(1) not in args:
                 raise Unsupported("argument list item " + item + " is not a declared {Argument}")
             keys.append(km.group(1))
+        if style == "json":
+            # booleans must stay bare: the string "false" is truthy in JS
+            return '"{' + ",".join(
+                f'"{k}":{{{{{{{k}}}}}}}' if args[k]["type"] == "switch" else f'"{k}":"{{{{{{{k}}}}}}}"'
+                for k in keys) + '}"', "json"
         # Loon hands the script an object; Shadowrocket hands it a string, so we
         # pass a query string (key=value&...), which is what both tieba-proto.js
         # and the Biliverse bundle (and most kelee scripts) parse.
@@ -404,7 +419,8 @@ def conv_argument(v, args):
     return v, False
 
 
-def conv_script(line, args, notes, names):
+def conv_script(line, args, notes, names, local=None):
+    local = local or {}
     if re.match(r"^(request|response)\s+if\s", line):
         kind, payload = conv_loon_if(line, notes)
         if kind == "lines":
@@ -456,12 +472,17 @@ def conv_script(line, args, notes, names):
     if truthy(opts.pop("binary-body-mode", "false")):
         out.append("binary-body-mode=1")
     out.append("script-path=" + spath)
+    if "max-size" not in opts and "max-size" in local:
+        opts["max-size"] = local["max-size"]
+        notes.append(f"script '{name}': max-size={local['max-size']} (local option)")
     for k in ("timeout", "max-size", "script-update-interval"):
         if k in opts:
             out.append(f"{k}={strip_q(opts.pop(k))}")
     if "argument" in opts:
-        a, was_list = conv_argument(opts.pop("argument"), args)
-        if was_list:
+        a, was_list = conv_argument(opts.pop("argument"), args, local.get("argument", "query"))
+        if was_list == "json":
+            notes.append("argument=[{..}] (object in Loon) -> JSON object string (local option)")
+        elif was_list:
             n_keys = a.count("&") + 1
             notes.append(f"argument=[{{..}}] (object in Loon) -> query string k={{{{{{k}}}}}}&... "
                          f"({n_keys} keys)")
@@ -533,7 +554,9 @@ def convert(text, url):
              "script": 0, "host": 0, "mitm_hosts": 0, "argument": 0, "general": 0,
              "src_entries": 0, "unconverted": 0}
     unconverted, notes, names = [], [], set()
-    disable = LOCAL_DISABLE.get(url.split("?", 1)[0].rsplit("/", 1)[-1], [])
+    upstream_name = url.split("?", 1)[0].rsplit("/", 1)[-1]
+    disable = LOCAL_DISABLE.get(upstream_name, [])
+    script_local = LOCAL_SCRIPT_OPTIONS.get(upstream_name, {})
 
     # [Argument] first: every other section may reference {key}
     args = {}
@@ -593,7 +616,7 @@ def convert(text, url):
                     else:
                         res = conv_rewrite(l, notes)
                 elif sec == "script":
-                    res = [conv_script(l, args, notes, names)]
+                    res = [conv_script(l, args, notes, names, script_local)]
                 elif sec == "host":
                     res = [("Host", re.sub(r"\s*=\s*", " = ", l, count=1))]
                 elif sec == "general":
