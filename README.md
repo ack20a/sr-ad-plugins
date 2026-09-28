@@ -39,8 +39,8 @@
 | 脚本 `argument=[{a},{b}]` | `argument="a={{{a}}}&b={{{b}}}"` | Loon 传给脚本的是对象，Shadowrocket 只能传字符串，所以改成 `k=v&k2=v2` 查询串。`tieba-proto.js` 和 Biliverse 的脚本都会解析这种查询串，Biliverse 官方的 Surge 模块用的也是这种格式 |
 | `mock-response-body data-type=json data="…"` | `[Map Local]` `data-type=text data="…" header="Content-Type:application/json"` | `data-path=` 转成 `data-type=file`，base64 转成 `data-type=base64`。Shadowrocket 的 Map Local 没有 `status-code` 参数，所以只转换 200（也就是默认值）的情况 |
 | `response if ${url} ~= /re/ then response.body.mock_file("json", URL, 200) \| response.header.set(…)` | `[Map Local]` `re data-type=file data="URL" header="…"` | BiliBili 的 BoxJS 设置页用的就是这种写法 |
-| `response-body-json-del k1 k2 …` | `[Body Rewrite]` 每个 key 一行 `http-response-jq re 'delpaths([[…]])'` | 路径解析规则和 Script-Hub 一致，支持 `a.b`、`[0]`、`["x.y"]` |
-| `response-body-json-replace k v …` | `http-response-jq re 'if (getpath(父路径) \| has(key)) then setpath(…) else . end'` | 和 Loon 一样只替换已经存在的字段 |
+| `response-body-json-del k1 k2 …` | `[Body Rewrite]` 每个 key 一行 `http-response-jq re 'delpaths([[…]])'` | 路径解析规则和 Script-Hub 一致，支持 `a.b`、`[0]`、`["x.y"]`；空路径会整条不转换（否则会清空整个响应体） |
+| `response-body-json-replace k v …` | `http-response-jq re 'if (getpath(父路径) \| type == "object" and has(key)) then setpath(…) else . end'` | 和 Loon 一样只替换已经存在的字段；先检查父节点类型，父节点不存在时不会让 jq 报错 |
 | `response-body-json-jq '…'` | `http-response-jq re '…'` | 原样保留。`jq-path=`（外部 jq 文件）暂不支持 |
 | `regex - reject-dict` / `regex reject-dict` | `[URL Rewrite]` `regex - reject-dict` | `reject-video`、`reject-tinygif` 转成 `reject-img` |
 | `[Rule]` `TYPE, value, POLICY` | `TYPE,value,POLICY` | 去掉空格和多余的引号；逻辑规则保留嵌套结构，支持 `PROTOCOL` 子规则；`DEST-PORT` 转成 `DST-PORT` |

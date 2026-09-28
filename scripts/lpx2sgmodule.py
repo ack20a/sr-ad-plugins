@@ -89,6 +89,8 @@ def norm_sub(expr):
     if not (expr.startswith("(") and expr.endswith(")")):
         raise Unsupported("bad logical sub-rule " + expr)
     parts = split_top(expr[1:-1].strip())
+    if len(parts) < 2:
+        raise Unsupported("logical sub-rule needs TYPE,VALUE: " + expr)
     t = rule_type(parts[0])
     if t in LOGICAL:
         return "(" + t + "," + norm_group(parts[1]) + ")"
@@ -126,7 +128,9 @@ def conv_rule(line):
 
 # ---------------------------------------------------------------- rewrites
 def parse_json_path(p):
-    """Same semantics as Script-Hub parseJsonPath: a.b[0]["c.d"]."""
+    """Same semantics as Script-Hub parseJsonPath: a.b[0]["c.d"].
+
+    An empty path would make delpaths/setpath act on the whole body, so it is refused."""
     out = []
     for m in re.finditer(r"\.?([^.\[\]]+)|\[(['\"])(.*?)\2\]|\[(\d+)\]", p.strip()):
         if m.group(1) is not None:
@@ -135,6 +139,8 @@ def parse_json_path(p):
             out.append(m.group(3))
         else:
             out.append(int(m.group(4)))
+    if not out:
+        raise Unsupported("empty JSON path " + repr(p))
     return out
 
 
@@ -251,7 +257,9 @@ def conv_rewrite(line, notes):
                 expr = f"setpath({jq_lit(path)}; {jq_lit(val)})"
             else:
                 parent, last = path[:-1], path[-1]
-                expr = (f"if (getpath({jq_lit(parent)}) | has({jq_lit(last)})) "
+                # type guard: has() errors on non-containers (and on null in jq < 1.7)
+                typ = "array" if isinstance(last, int) else "object"
+                expr = (f"if (getpath({jq_lit(parent)}) | type == \"{typ}\" and has({jq_lit(last)})) "
                         f"then (setpath({jq_lit(path)}; {jq_lit(val)})) else . end")
             out.append(("Body Rewrite", f"http-{kind}-jq {pat} '{expr}'"))
         return out
@@ -308,7 +316,10 @@ def conv_loon_if(line, notes):
     tm = re.match(r'^response\.body\.mock\("(\w+)",\s*(".*")(?:,\s*(\d+))?\)$', acts[0])
     if kind == "response" and tm and len(acts) == 1 and tm.group(3) in (None, "200"):
         ct = MOCK_CT.get(tm.group(1).lower())
-        data = json.loads(tm.group(2))
+        try:
+            data = json.loads(tm.group(2))
+        except ValueError:
+            raise Unsupported("cannot parse mock data")
         if not ct or "\n" in data:
             raise Unsupported("mock type " + tm.group(1))
         notes.append("Loon response.body.mock(...) -> [Map Local] data-type=text")
@@ -622,7 +633,7 @@ def convert(text, url):
     h = [f"#!name={header.get('name', '')}",
          f"#!desc={desc}",
          f"#!author={header.get('author', '')}；Shadowrocket 转换: ack20a",
-         f"#!homepage={header.get('homepage', 'https://hub.kelee.one')}"]
+         f"#!homepage={header.get('homepage') or ('https://hub.kelee.one' if kelee else url)}"]
     if header.get("icon"):
         h.append(f"#!icon={header['icon']}")
     h.append(f"#!category={category}")
