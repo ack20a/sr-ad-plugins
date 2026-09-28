@@ -1,0 +1,5 @@
+#!name=百度贴吧（排查 T：只解密）
+#!desc=【排查用，测完请删除】什么都不改，只解密 tiebac.baidu.com。用来检查贴吧是不是对这个域名做了证书固定
+
+[MITM]
+hostname = %APPEND% tiebac.baidu.com
