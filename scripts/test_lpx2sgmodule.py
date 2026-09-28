@@ -222,10 +222,37 @@ class Units(unittest.TestCase):
             "http-response-jq ^https://a 'delpaths([[\"a\",\"b\"]])'",
             "http-response-jq ^https://a 'delpaths([[\"c\",0]])'",
             "http-response-jq ^https://a 'delpaths([[\"d\",\"e.f\"]])'",
-            "http-response-jq ^https://a 'if (getpath([\"x\"]) | has(\"y\")) then (setpath([\"x\",\"y\"]; 0)) else . end'",
-            "http-response-jq ^https://a 'if (getpath([]) | has(\"z\")) then (setpath([\"z\"]; \"s t\")) else . end'",
+            "http-response-jq ^https://a 'if (getpath([\"x\"]) | type == \"object\" and has(\"y\")) "
+            "then (setpath([\"x\",\"y\"]; 0)) else . end'",
+            "http-response-jq ^https://a 'if (getpath([]) | type == \"object\" and has(\"z\")) "
+            "then (setpath([\"z\"]; \"s t\")) else . end'",
             "http-response-jq ^https://a 'del(.ad)'",
             "http-request ^https://a foo bar"])
+
+    def test_json_replace_array_index_guard(self):
+        out, *_ = conv("[Rewrite]\n^https://a response-body-json-replace a[0] 1\n")
+        self.assertIn('\'if (getpath(["a"]) | type == "array" and has(0)) then (setpath(["a",0]; 1)) else . end\'',
+                      out)
+
+    def test_empty_json_path_is_unconverted(self):
+        # delpaths([[]]) / setpath([]; v) would wipe the whole body
+        for act in ("json-del []", "json-replace [] 1", "json-add [] 1"):
+            out, s, u, _ = conv(f"[Rewrite]\n^https://a response-body-{act}\n")
+            self.assertEqual(len(u), 1, act)
+            self.assertNotIn("[Body Rewrite]", out, act)
+
+    def test_malformed_lines_do_not_abort_conversion(self):
+        out, s, u, _ = conv('[Rule]\nAND, ((DOMAIN)), REJECT\nDOMAIN, a.com, REJECT\n'
+                            '[Rewrite]\nresponse if ${url} ~= /^https:\\/\\/a/ then '
+                            'response.body.mock("json", "\\x")\n')
+        self.assertEqual(len(u), 2)
+        self.assertEqual(section(out, "Rule"), ["DOMAIN,a.com,REJECT"])
+
+    def test_homepage_default(self):
+        out, *_ = conv("[Rule]\nDOMAIN, a.com, REJECT\n", url="https://example.com/x.plugin")
+        self.assertIn("#!homepage=https://example.com/x.plugin", out)
+        out, *_ = conv("[Rule]\nDOMAIN, a.com, REJECT\n")
+        self.assertIn("#!homepage=https://hub.kelee.one", out)
 
     def test_header_rewrite(self):
         out, *_ = conv("[Rewrite]\n^https://a response-header-add X-A 1 X-B 2\n^https://b header-del Cookie\n")
