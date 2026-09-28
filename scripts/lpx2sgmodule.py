@@ -7,7 +7,7 @@ Supported (see README "转换时做的适配" for the full mapping table):
   *-body-json-jq/del/replace/add and *-body-replace-regex -> [Body Rewrite],
   *-header-* -> [Header Rewrite]), [Script] (http-request/http-response/cron and
   the simple Loon "response if ${url} ~= /re/ then script(...)" form), [Host],
-  [MitM] (hostname, h2).
+  [MitM] (hostname; h2 is always dropped, see H2_DROPPED).
 
 Anything that cannot be mapped 1:1 is kept as a commented line
 ('# [UNCONVERTED] ...') and reported - nothing is dropped silently.
@@ -37,25 +37,21 @@ SCRIPT_KEYS = ("script-path|pattern|timeout|argument|requires-body|max-size|bina
                "enable|tag|img-url|engine|cronexpr?|script-update-interval|wake-system|debug|ability")
 
 
+# Repo policy: no module turns on Shadowrocket's HTTP/2 MITM. It is a single global switch
+# (an "h2 = true" in any module overrides the config), and with it on, decrypting
+# tiebac.baidu.com makes Tieba log the user out; with it off Tieba works. Tested on device;
+# Loon's own HTTP/2 MITM does not have the problem. Upstream h2 lines become this comment.
+H2_DROPPED = "# 上游的 h2 = true 已去掉：本仓库不开 HTTP/2 解密（开着时贴吧会登录失败），见 README"
+
 # Upstream lines that break the app under Shadowrocket, keyed by upstream file name.
 # (section, regex on the source line, reason). They are emitted commented out as
 # '# [DISABLED: reason] ...' and reported like UNCONVERTED entries.
-TIEBA_NO_MITM = "贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效"
-LOCAL_DISABLE = {
-    # Tested on device: MITM of tiebac.baidu.com alone (no rewrite, no script) makes Tieba
-    # log the user out; app2smile's own module fails the same way. Drop the MITM and every
-    # line that only works on decrypted https traffic of those hosts.
-    "Tieba_remove_ads.lpx": [
-        ("mitm", r"^hostname\s*=", TIEBA_NO_MITM),
-        ("rewrite", r"^\^https\??:\\/\\/tieba", TIEBA_NO_MITM),
-        ("script", r"\s\^https\??:\\/\\/tieba", TIEBA_NO_MITM),
-    ],
-}
+LOCAL_DISABLE = {}
 
 # Appended to #!desc, keyed by upstream file name.
 LOCAL_DESC_NOTE = {
-    "Tieba_remove_ads.lpx": ("【Shadowrocket 精简版】贴吧会拒绝被解密的连接，解密后无法登录，"
-                             "所以本模块不解密，只保留域名规则，去广告效果有限。"),
+    "Tieba_remove_ads.lpx": ("【注意】要关闭 HTTP/2 解密（配置 → HTTPS 解密 → 通过 HTTP/2 进行中间人攻击），"
+                             "开着时贴吧会提示用户未登录或登录失败并被踢出。"),
 }
 
 # Per-upstream [Script] options, keyed by upstream file name.
@@ -66,6 +62,8 @@ LOCAL_SCRIPT_OPTIONS = {
     # Maasea's YouTube scripts: JSON.parse($argument) on Surge-like clients, and
     # browse/next bodies exceed the default size limit (Maasea's own module: max-size=-1).
     "YouTube_remove_ads.lpx": {"argument": "json", "max-size": "-1"},
+    # tieba-proto.js rewrites whole forum/thread pages; Loon has no body size limit.
+    "Tieba_remove_ads.lpx": {"max-size": "-1"},
 }
 
 
@@ -194,6 +192,30 @@ def jq_lit(v):
     return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
 
 
+def jq_guard(path):
+    """jq condition: every node above path[-1] is the container its next key needs.
+    `and` short-circuits, so getpath never indexes into a string or a number."""
+    conds = []
+    for i, k in enumerate(path):
+        typ = "array" if isinstance(k, int) else "object"
+        conds.append(f'type == "{typ}"' if i == 0 else f'(getpath({jq_lit(path[:i])}) | type) == "{typ}"')
+    return " and ".join(conds)
+
+
+def jq_del(paths):
+    """One jq program deleting `paths` in order, skipping paths whose parents are missing.
+    Consecutive object keys under one parent share a delpaths; array indices stay separate
+    steps, because deleting one index shifts the next."""
+    groups = []
+    for p in paths:
+        g = groups[-1] if groups else None
+        if g and isinstance(p[-1], str) and isinstance(g[-1][-1], str) and g[-1][:-1] == p[:-1]:
+            g.append(p)
+        else:
+            groups.append([p])
+    return " | ".join(f"if {jq_guard(g[0])} then delpaths({jq_lit(g)}) else . end" for g in groups)
+
+
 def parse_params(s):
     """Parse 'k=v k2="v with spaces / inner "quotes"" flag' (Loon mock/Map Local style)."""
     params = {}
@@ -273,28 +295,30 @@ def conv_rewrite(line, notes):
             if len(items) % 2:
                 raise Unsupported("replace-regex needs find/replace pairs")
             return [("Body Rewrite", f"http-{kind} {pat} {arg}")]
-        out = []
+        # One Loon line -> one jq program (Shadowrocket runs each [Body Rewrite] line as a
+        # separate jq pass over the whole body), steps applied in the Loon order.
         if act == "json-del":
-            for k in items:
-                path = parse_json_path(loon_key(k))
-                out.append(("Body Rewrite", f"http-{kind}-jq {pat} 'delpaths([{jq_lit(path)}])'"))
-            return out
-        if len(items) % 2:
-            raise Unsupported(act + " needs key/value pairs")
-        for k, v in zip(items[::2], items[1::2]):
-            path, val = parse_json_path(loon_key(k)), loon_value(v)
-            if "'" in jq_lit(val):
-                raise Unsupported("single quote in json value")
-            if act == "json-add":
-                expr = f"setpath({jq_lit(path)}; {jq_lit(val)})"
-            else:
-                parent, last = path[:-1], path[-1]
-                # type guard: has() errors on non-containers (and on null in jq < 1.7)
-                typ = "array" if isinstance(last, int) else "object"
-                expr = (f"if (getpath({jq_lit(parent)}) | type == \"{typ}\" and has({jq_lit(last)})) "
-                        f"then (setpath({jq_lit(path)}; {jq_lit(val)})) else . end")
-            out.append(("Body Rewrite", f"http-{kind}-jq {pat} '{expr}'"))
-        return out
+            prog = jq_del([parse_json_path(loon_key(k)) for k in items])
+        else:
+            if len(items) % 2:
+                raise Unsupported(act + " needs key/value pairs")
+            steps = []
+            for k, v in zip(items[::2], items[1::2]):
+                path, val = parse_json_path(loon_key(k)), loon_value(v)
+                if act == "json-add":
+                    steps.append(f"setpath({jq_lit(path)}; {jq_lit(val)})")
+                    continue
+                # like Loon, only replace a field that exists; the guard keeps has()/getpath
+                # away from non-containers (and from null in jq < 1.7)
+                has = f"has({jq_lit(path[-1])})"
+                if len(path) > 1:
+                    has = f"(getpath({jq_lit(path[:-1])}) | {has})"
+                steps.append(f"if {jq_guard(path)} and {has} "
+                             f"then setpath({jq_lit(path)}; {jq_lit(val)}) else . end")
+            prog = " | ".join(steps)
+        if "'" in prog:
+            raise Unsupported("single quote in json path or value")
+        return [("Body Rewrite", f"http-{kind}-jq {pat} '{prog}'")]
     m = re.match(r"^(?:(request|response)-)?header-(add|del|replace|replace-regex)\s+(.*)$", rest)
     if m:
         kind = m.group(1) or "request"
@@ -341,9 +365,10 @@ def conv_loon_if(line, notes):
             if "'" in arg:
                 raise Unsupported("single quote in jq expression")
             return "lines", [("Body Rewrite", f"http-{kind}-jq {regex} '{arg}'")]
-        paths = arg if isinstance(arg, list) else [arg]
-        return "lines", [("Body Rewrite", f"http-{kind}-jq {regex} 'delpaths([{jq_lit(parse_json_path(x))}])'")
-                         for x in paths]
+        prog = jq_del([parse_json_path(x) for x in (arg if isinstance(arg, list) else [arg])])
+        if "'" in prog:
+            raise Unsupported("single quote in json path")
+        return "lines", [("Body Rewrite", f"http-{kind}-jq {regex} '{prog}'")]
     acts = [a.strip() for a in re.split(r"\s+\|\s+", action)]
     tm = re.match(r'^response\.body\.mock\("(\w+)",\s*(".*")(?:,\s*(\d+))?\)$', acts[0])
     if kind == "response" and tm and len(acts) == 1 and tm.group(3) in (None, "200"):
@@ -645,8 +670,8 @@ def convert(text, url):
                         stats["mitm_hosts"] += len(hosts)
                         res = [("MITM", "hostname = %APPEND% " + ", ".join(hosts))] if hosts else []
                     elif k == "h2":
-                        res = [("MITM", "h2 = " + ("true" if truthy(v) else "false"))]
-                        notes.append("[MitM] h2 kept (Shadowrocket >= 2.2.81 supports h2 in [MITM])")
+                        res = [("MITM", H2_DROPPED)] if truthy(v) else []
+                        notes.append("[MitM] h2 dropped (repo policy, see H2_DROPPED)")
                     else:
                         raise Unsupported("unsupported MITM key " + k)
                 reason = next((r for dsec, pat, r in disable if dsec == sec and re.search(pat, l)), None)

@@ -43,15 +43,6 @@ def entries(lines):
     return [l for l in lines if not l.startswith("#") and not l.startswith("//")]
 
 
-def expected_rewrite_outputs(line):
-    """Independent expectation: how many module lines one Loon rewrite line becomes."""
-    m = re.search(r"\s(?:request|response)-body-json-(del|replace|add)\s+(.*)$", line)
-    if m:
-        n = len(m.group(2).split())
-        return n if m.group(1) == "del" else n // 2
-    return 1
-
-
 class RoundTrip(unittest.TestCase):
     def check(self, name):
         src, url = SOURCES[name]
@@ -73,10 +64,10 @@ class RoundTrip(unittest.TestCase):
         conv = [r for r in up_rules if not any(r in u for s, u in unconv if s == "rule")]
         self.assertEqual([norm(r) for r in conv], [norm(r) for r in live("rule")])
 
-        # rewrites -> URL Rewrite + Body Rewrite + Header Rewrite + Map Local (+ scripts' Map Local)
+        # rewrites -> URL Rewrite + Body Rewrite + Header Rewrite + Map Local (+ scripts' Map Local);
+        # every Loon rewrite line becomes one line (json-del/replace with several keys: one jq)
         up_rw = entries(up.get("rewrite", []))
-        exp = sum(expected_rewrite_outputs(l) for l in up_rw
-                  if not any(l in u for s, u in unconv if s == "rewrite"))
+        exp = len([l for l in up_rw if not any(l in u for s, u in unconv if s == "rewrite")])
         got = sum(len(live(s)) for s in ("url rewrite", "body rewrite", "header rewrite", "map local"))
         up_sc = entries(up.get("script", []))
         sc_maplocal = sum(1 for l in up_sc if "mock_file(" in l)
@@ -100,8 +91,10 @@ class RoundTrip(unittest.TestCase):
         sh = [h.strip() for l in sg.get("mitm", []) if l.startswith("hostname")
               for h in l.split("%APPEND%", 1)[1].split(",") if h.strip()]
         self.assertEqual(uh, sh)
+        # h2 is never emitted; an upstream h2 = true leaves the H2_DROPPED comment instead
+        self.assertFalse([l for l in sg.get("mitm", []) if l.replace(" ", "").lower().startswith("h2=")])
         self.assertEqual(any(l.replace(" ", "") == "h2=true" for l in up.get("mitm", [])),
-                         "h2 = true" in sg.get("mitm", []))
+                         C.H2_DROPPED in sg.get("mitm", []))
 
         # arguments: declared == #!arguments keys; no leaked Loon {key}; every {{{k}}} declared
         keys = [l.split("=", 1)[0].strip() for l in entries(up.get("argument", []))]
@@ -125,15 +118,22 @@ class RoundTrip(unittest.TestCase):
 
     def test_tieba(self):
         s, u = self.check("Tieba_remove_ads")
+        # 6 json-del + 2 json-replace + 2 json-jq lines -> 10 jq lines (one per Loon line)
         self.assertEqual((s["rule"], s["url_rewrite"], s["body_rewrite"], s["map_local"], s["script"],
-                          s["argument"], len(u)), (2, 1, 0, 0, 0, 1, 17))
-        # MITM of tiebac.baidu.com makes Tieba log the user out (LOCAL_DISABLE): no MITM at all,
-        # and every https tieba line is disabled; only rules + the plain-http hotforum stay live
-        self.assertTrue(all("disabled:" in l for _s, l in u), u)
+                          s["mitm_hosts"], s["argument"], len(u)), (2, 5, 10, 1, 1, 2, 1, 0))
         with open(os.path.join(ROOT, "modules", "Tieba_remove_ads.sgmodule"), encoding="utf-8") as f:
-            live_lines = [l for l in f.read().splitlines() if l and not l.startswith("#") and not l.startswith("[")]
-        self.assertEqual(live_lines, ["DOMAIN,180.76.76.200,REJECT", "IP-CIDR,180.76.76.200/32,REJECT,no-resolve",
-                                      "^http:\\/\\/c\\.tieba\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ - reject-dict"])
+            text = f.read()
+        # full module: Tieba only logs users out when Shadowrocket decrypts it over HTTP/2
+        self.assertIn("hostname = %APPEND% tiebac.baidu.com, tieba.baidu.com", text)
+        self.assertIn("要关闭 HTTP/2 解密", text.splitlines()[1])
+        self.assertRegex(text, r"\nProtoBuf处理 = .*,max-size=-1,argument=")
+
+    def test_no_module_enables_h2(self):
+        # Shadowrocket's HTTP/2 MITM is global and a module's h2 overrides the config
+        for name in sorted(os.listdir(os.path.join(ROOT, "modules"))):
+            with open(os.path.join(ROOT, "modules", name), encoding="utf-8") as f:
+                bad = [l for l in f.read().splitlines() if re.match(r"\s*h2\s*=", l, re.I)]
+            self.assertEqual(bad, [], name)
 
     def test_bilibili(self):
         s, u = self.check("BiliBili.ADBlock")
@@ -161,12 +161,12 @@ class Merge(unittest.TestCase):
         for r in live(dual, "rule"):
             self.assertIn(r, live(sg, "rule"))
         self.assertIn("AND,((DOMAIN-SUFFIX,googlevideo.com),(PROTOCOL,UDP)),REJECT-NO-DROP", live(sg, "rule"))
-        # MITM: union of both host lists (incl. the -redirector exclusion) + h2
+        # MITM: union of both host lists (incl. the -redirector exclusion), no h2
         hosts = lambda d: [h.strip() for l in d.get("mitm", []) if l.lower().startswith("hostname")  # noqa: E731
                            for h in l.split("=", 1)[1].replace("%APPEND%", "").split(",") if h.strip()]
         self.assertEqual(set(hosts(sg)), set(hosts(kelee)) | set(hosts(dual)))
         self.assertIn("-redirector*.googlevideo.com", hosts(sg))
-        self.assertIn("h2 = true", sg["mitm"])
+        self.assertEqual(live(sg, "mitm"), [l for l in live(sg, "mitm") if l.startswith("hostname")])
         # arguments: both sets, captionLang handed to DualSubs
         args = M.parse_arguments(re.search(r"^#!arguments=(.*)$", out, re.M).group(1))
         self.assertEqual(list(args), ["blockUpload", "blockShorts", "blockImmersive", "captionLang", "debug",
@@ -194,6 +194,18 @@ class Merge(unittest.TestCase):
             with self.assertRaises(ValueError):
                 M.merge("_t", {"a.sgmodule": "#!arguments=x:1\n[Rule]\nDOMAIN,a,REJECT\n",
                                "b.sgmodule": "#!arguments=x:2\n[Rule]\nDOMAIN,b,REJECT\n"})
+        finally:
+            del M.MERGES["_t"]
+
+    def test_h2_from_sources_is_dropped(self):
+        recipe = dict(M.MERGES["YouTube"], sources=[("a.sgmodule", "u", "A")], argument_defaults={}, extra={})
+        M.MERGES["_t"] = recipe
+        try:
+            out = M.merge("_t", {"a.sgmodule": "[Rule]\nDOMAIN,a,REJECT\n[MITM]\nhostname = %APPEND% a.com\nh2 = true\n"})
+            self.assertEqual(sections(out)["mitm"], ["hostname = %APPEND% a.com", C.H2_DROPPED])
+            M.MERGES["_t"] = dict(recipe, extra={"MITM": ["h2 = true"]})
+            with self.assertRaises(ValueError):
+                M.merge("_t", {"a.sgmodule": "[Rule]\nDOMAIN,a,REJECT\n"})
         finally:
             del M.MERGES["_t"]
 
@@ -285,21 +297,39 @@ class Units(unittest.TestCase):
                             "^https://a response-body-json-replace x.y 0 z \"s\\x20t\"\n"
                             "^https://a response-body-json-jq 'del(.ad)'\n"
                             "^https://a request-body-replace-regex foo bar\n")
+        # one jq program per Loon line; every step is skipped when a parent is missing/not a container
         self.assertEqual(section(out, "Body Rewrite"), [
-            "http-response-jq ^https://a 'delpaths([[\"a\",\"b\"]])'",
-            "http-response-jq ^https://a 'delpaths([[\"c\",0]])'",
-            "http-response-jq ^https://a 'delpaths([[\"d\",\"e.f\"]])'",
-            "http-response-jq ^https://a 'if (getpath([\"x\"]) | type == \"object\" and has(\"y\")) "
-            "then (setpath([\"x\",\"y\"]; 0)) else . end'",
-            "http-response-jq ^https://a 'if (getpath([]) | type == \"object\" and has(\"z\")) "
-            "then (setpath([\"z\"]; \"s t\")) else . end'",
+            "http-response-jq ^https://a '"
+            'if type == "object" and (getpath(["a"]) | type) == "object" then delpaths([["a","b"]]) else . end | '
+            'if type == "object" and (getpath(["c"]) | type) == "array" then delpaths([["c",0]]) else . end | '
+            'if type == "object" and (getpath(["d"]) | type) == "object" then delpaths([["d","e.f"]]) else . end'
+            "'",
+            "http-response-jq ^https://a '"
+            'if type == "object" and (getpath(["x"]) | type) == "object" and (getpath(["x"]) | has("y")) '
+            'then setpath(["x","y"]; 0) else . end | '
+            'if type == "object" and has("z") then setpath(["z"]; "s t") else . end'
+            "'",
             "http-response-jq ^https://a 'del(.ad)'",
             "http-request ^https://a foo bar"])
+        self.assertEqual(s["body_rewrite"], 4)
+
+    def test_json_del_groups_keys_but_not_array_indices(self):
+        # object keys under one parent share a delpaths; array indices stay separate steps
+        # (sequential deletes: the second index applies to the already shortened array)
+        out, *_ = conv("[Rewrite]\n^https://a response-body-json-del l[0] l[0] a b c.d e\n")
+        self.assertEqual(section(out, "Body Rewrite"), [
+            "http-response-jq ^https://a '"
+            'if type == "object" and (getpath(["l"]) | type) == "array" then delpaths([["l",0]]) else . end | '
+            'if type == "object" and (getpath(["l"]) | type) == "array" then delpaths([["l",0]]) else . end | '
+            'if type == "object" then delpaths([["a"],["b"]]) else . end | '
+            'if type == "object" and (getpath(["c"]) | type) == "object" then delpaths([["c","d"]]) else . end | '
+            'if type == "object" then delpaths([["e"]]) else . end'
+            "'"])
 
     def test_json_replace_array_index_guard(self):
         out, *_ = conv("[Rewrite]\n^https://a response-body-json-replace a[0] 1\n")
-        self.assertIn('\'if (getpath(["a"]) | type == "array" and has(0)) then (setpath(["a",0]; 1)) else . end\'',
-                      out)
+        self.assertIn('\'if type == "object" and (getpath(["a"]) | type) == "array" and (getpath(["a"]) | has(0)) '
+                      'then setpath(["a",0]; 1) else . end\'', out)
 
     def test_empty_json_path_is_unconverted(self):
         # delpaths([[]]) / setpath([]; v) would wipe the whole body
@@ -321,20 +351,26 @@ class Units(unittest.TestCase):
         out, *_ = conv("[Rule]\nDOMAIN, a.com, REJECT\n")
         self.assertIn("#!homepage=https://hub.kelee.one", out)
 
-    def test_local_disable(self):
-        body = ("[Rewrite]\n^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/search\\/discover$ reject-dict\n"
-                "^http:\\/\\/c\\.tieba\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ reject-dict\n"
-                "[Script]\nhttp-response ^https?:\\/\\/tieba(?:c)?\\.baidu\\.com\\/x script-path=https://s/a.js\n"
-                "[MitM]\nhostname=tiebac.baidu.com\n")
-        out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Tieba_remove_ads.lpx")
-        self.assertEqual(section(out, "URL Rewrite"), ["^http:\\/\\/c\\.tieba\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ - reject-dict"])
+    def test_local_disable_and_desc_note(self):
+        body = ("[Rewrite]\n^https?:\\/\\/a\\.com\\/x$ reject-dict\n^http:\\/\\/b\\.com\\/y$ reject-dict\n"
+                "[Script]\nhttp-response ^https?:\\/\\/a\\.com\\/z script-path=https://s/a.js\n"
+                "[MitM]\nhostname=a.com\n")
+        C.LOCAL_DISABLE["_t.lpx"] = [("mitm", r"^hostname\s*=", "R"), ("rewrite", r"^\^https\?", "R"),
+                                     ("script", r"\s\^https\?", "R")]
+        C.LOCAL_DESC_NOTE["_t.lpx"] = "【本地说明】"
+        try:
+            out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/_t.lpx")
+        finally:
+            del C.LOCAL_DISABLE["_t.lpx"], C.LOCAL_DESC_NOTE["_t.lpx"]
+        self.assertEqual(section(out, "URL Rewrite"), ["^http:\\/\\/b\\.com\\/y$ - reject-dict"])
         self.assertEqual((section(out, "Script"), section(out, "MITM")), ([], []))
-        self.assertIn("# [DISABLED: ", out)
-        self.assertIn("【Shadowrocket 精简版】", out)
+        self.assertIn("# [DISABLED: R] ", out)
+        self.assertIn("【本地说明】", out.splitlines()[1])
         self.assertEqual((s["url_rewrite"], s["script"], len(u)), (1, 0, 3))
         out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Other.lpx")  # other plugins untouched
         self.assertEqual((s["url_rewrite"], s["script"], len(u)), (2, 1, 0))
-        self.assertEqual(section(out, "MITM"), ["hostname = %APPEND% tiebac.baidu.com"])
+        self.assertEqual(section(out, "MITM"), ["hostname = %APPEND% a.com"])
+        self.assertNotIn("【本地说明】", out)
 
     def test_json_argument_style_and_max_size(self):
         body = ("[Argument]\nsw=switch, false, true, tag=S\nlang=select, \"zh-Hans\", \"off\", tag=L\n"
@@ -385,10 +421,14 @@ class Units(unittest.TestCase):
         _, s, u, _ = conv("[Rule]\nDOMAIN, a.com, REJECT\n")
         self.assertEqual((s["rule"], s["unconverted"], len(u)), (1, 0, 0))
 
-    def test_mitm_h2_empty_and_general(self):
+    def test_mitm_h2_dropped_empty_and_general(self):
         out, s, u, _ = conv("[General]\nreal-ip = *.a.com, b.com\n[MitM]\nhostname =\nh2 = true\n")
-        self.assertEqual(section(out, "MITM"), ["h2 = true"])
+        self.assertEqual(section(out, "MITM"), [])  # repo policy: HTTP/2 MITM stays off
+        self.assertIn(C.H2_DROPPED, out)
+        self.assertEqual(u, [])
         self.assertEqual(section(out, "General"), ["always-real-ip = %APPEND% *.a.com, b.com"])
+        out, *_ = conv("[MitM]\nhostname = a.com\nh2 = false\n")
+        self.assertEqual(sections(out)["mitm"], ["hostname = %APPEND% a.com"])
 
     def test_unknown_section_is_kept_commented(self):
         out, s, u, _ = conv("[Foo]\nbar\n")

@@ -1,5 +1,5 @@
 #!name=百度贴吧去广告
-#!desc=移除开屏广告、信息流广告和帖内广告，精简侧拉抽屉及我的页面。（转换自 kelee.one Loon 插件，原作者见 author）【Shadowrocket 精简版】贴吧会拒绝被解密的连接，解密后无法登录，所以本模块不解密，只保留域名规则，去广告效果有限。
+#!desc=移除开屏广告、信息流广告和帖内广告，精简侧拉抽屉及我的页面。（转换自 kelee.one Loon 插件，原作者见 author）【注意】要关闭 HTTP/2 解密（配置 → HTTPS 解密 → 通过 HTTP/2 进行中间人攻击），开着时贴吧会提示用户未登录或登录失败并被踢出。
 #!author=可莉🅥[https://github.com/luestr/ProxyResource/blob/main/README.md], app2smile[https://github.com/app2smile]；Shadowrocket 转换: ack20a
 #!homepage=https://hub.kelee.one
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Tieba.png
@@ -18,105 +18,38 @@ DOMAIN,180.76.76.200,REJECT
 IP-CIDR,180.76.76.200/32,REJECT,no-resolve
 
 [URL Rewrite]
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] ^https?:\/\/tiebac\.baidu\.com\/c\/f\/forum\/getInterestClassList$ - reject-dict
+^https?:\/\/tiebac\.baidu\.com\/c\/f\/forum\/getInterestClassList$ - reject-dict
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] ^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] ^https?:\/\/tieba\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
+^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
+^https?:\/\/tieba\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] ^https:\/\/tieba\.baidu\.com\/c\/f\/forum\/getForumAlbum$ - reject-dict
+^https:\/\/tieba\.baidu\.com\/c\/f\/forum\/getForumAlbum$ - reject-dict
 
 ^http:\/\/c\.tieba\.baidu\.com\/c\/f\/forum\/hotforum$ - reject-dict
 
 [Body Rewrite]
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["activity_switch"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["video_report_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["advertisement_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["next_start"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["push_strategy_new"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["live_activity_guide"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["h5_pop_ups"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["duxiaoman_url"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["is_need_remind_live_rooms"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["floating_icon"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_stlog_switch"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["first_time_motivate"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["windowStrategyList"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_adsense"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["videoup_guide_pop"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_origin_config_switch"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["needNewUserLead"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["h5_pop_ups_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["alaTabColor"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["search_guide"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_sdk_priority"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["low_version_pop_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_num_competition_frs"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["live_new_user_guide_day"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["screen_fill_data_result"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["yy_live_tab"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["ad_num_competition_personalize"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["complete_apk_url"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["user_activity"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["homepage_guide"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["bottom_bubble_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["home_screen_ad"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["afSearch_tab"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["recent_client_info"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["video_activity"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["namoaixud_url"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["yy_live_config"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["user_growth_task_list"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["cloud_control_data_info"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","pb_banner_funad_cache_strategy"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","pb_comment_asyncafd_cache_strategy"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","download_edge_float"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","download_pause_retain_dialog_conf"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","download_mobile_dialog_conf"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","download_fake_progress_config_a"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["wl_config","download_fake_progress_config_b"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["scheme_whitelist"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if type == "object" then delpaths([["activity_switch"],["video_report_config"],["advertisement_config"],["next_start"],["push_strategy_new"],["live_activity_guide"],["h5_pop_ups"],["duxiaoman_url"],["is_need_remind_live_rooms"],["floating_icon"],["ad_stlog_switch"],["first_time_motivate"],["windowStrategyList"],["ad_adsense"],["ad_config"],["videoup_guide_pop"],["ad_origin_config_switch"],["needNewUserLead"],["h5_pop_ups_config"],["alaTabColor"],["search_guide"],["ad_sdk_priority"],["low_version_pop_config"],["ad_num_competition_frs"],["live_new_user_guide_day"],["screen_fill_data_result"],["yy_live_tab"],["ad_num_competition_personalize"],["complete_apk_url"],["user_activity"],["homepage_guide"],["bottom_bubble_config"],["home_screen_ad"],["afSearch_tab"],["recent_client_info"],["video_activity"],["namoaixud_url"],["yy_live_config"],["user_growth_task_list"],["cloud_control_data_info"]]) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" then delpaths([["wl_config","pb_banner_funad_cache_strategy"],["wl_config","pb_comment_asyncafd_cache_strategy"],["wl_config","download_edge_float"],["wl_config","download_pause_retain_dialog_conf"],["wl_config","download_mobile_dialog_conf"],["wl_config","download_fake_progress_config_a"],["wl_config","download_fake_progress_config_b"]]) else . end | if type == "object" then delpaths([["scheme_whitelist"]]) else . end'
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("home_ad_num")) then (setpath(["wl_config","home_ad_num"]; 0)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("frs_ad_num")) then (setpath(["wl_config","frs_ad_num"]; 0)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("pb_comment_ad_num")) then (setpath(["wl_config","pb_comment_ad_num"]; 0)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("index_bear_density")) then (setpath(["wl_config","index_bear_density"]; 0)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("frs_bear_density")) then (setpath(["wl_config","frs_bear_density"]; 0)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("index_bear_first_floor_max")) then (setpath(["wl_config","index_bear_first_floor_max"]; 999999999)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_config"]) | type == "object" and has("index_bear_first_floor_min")) then (setpath(["wl_config","index_bear_first_floor_min"]; 999999999)) else . end'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("home_ad_num")) then setpath(["wl_config","home_ad_num"]; 0) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("frs_ad_num")) then setpath(["wl_config","frs_ad_num"]; 0) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("pb_comment_ad_num")) then setpath(["wl_config","pb_comment_ad_num"]; 0) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("index_bear_density")) then setpath(["wl_config","index_bear_density"]; 0) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("frs_bear_density")) then setpath(["wl_config","frs_bear_density"]; 0) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("index_bear_first_floor_max")) then setpath(["wl_config","index_bear_first_floor_max"]; 999999999) else . end | if type == "object" and (getpath(["wl_config"]) | type) == "object" and (getpath(["wl_config"]) | has("index_bear_first_floor_min")) then setpath(["wl_config","index_bear_first_floor_min"]; 999999999) else . end'
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ '.index_tab_info |= map(select(.tab_name == "推荐")) | .top_level_navi |= {"推荐": .["推荐"], "侧边栏": .["侧边栏"], "关注": .["关注"]}'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ '.index_tab_info |= map(select(.tab_name == "推荐")) | .top_level_navi |= {"推荐": .["推荐"], "侧边栏": .["侧边栏"], "关注": .["关注"]}'
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["url_map"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["user_agent_info"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["bubble_info"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["duxiaoman_entry"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["uc_card"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["finance_tab"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["vip_banner"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["ala_live_info"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["recom_naws_list"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["duxiaoman"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["user","consume_info"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["namoaixud_entry"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'if (getpath(["user","shake_ad_switch"]) | type == "object" and has("is_show")) then (setpath(["user","shake_ad_switch","is_show"]; 0)) else . end'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ '.custom_grid |= map(select(.title != "游戏大厅" and .title != "预约管理" and .title != "领话费" and .title != "短故事")) | .zone_info |= map(.common_func |= (if .common_func_noraml then .common_func_noraml |= map(select(.name != "创建智能体")) else . end)) | .zone_info |= map(select(.type != "commerce" and .type != "banner" and .type != "game"))'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'if type == "object" then delpaths([["url_map"],["user_agent_info"],["bubble_info"],["duxiaoman_entry"],["uc_card"],["finance_tab"],["vip_banner"],["ala_live_info"],["recom_naws_list"],["duxiaoman"]]) else . end | if type == "object" and (getpath(["user"]) | type) == "object" then delpaths([["user","consume_info"]]) else . end | if type == "object" then delpaths([["namoaixud_entry"]]) else . end'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'if type == "object" and (getpath(["user"]) | type) == "object" and (getpath(["user","shake_ad_switch"]) | type) == "object" and (getpath(["user","shake_ad_switch"]) | has("is_show")) then setpath(["user","shake_ad_switch","is_show"]; 0) else . end'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ '.custom_grid |= map(select(.title != "游戏大厅" and .title != "预约管理" and .title != "领话费" and .title != "短故事")) | .zone_info |= map(.common_func |= (if .common_func_noraml then .common_func_noraml |= map(select(.name != "创建智能体")) else . end)) | .zone_info |= map(select(.type != "commerce" and .type != "banner" and .type != "game"))'
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tieba\.baidu\.com\/c\/f\/forum\/forumGuide$ 'delpaths([["hot_search"]])'
+http-response-jq ^https?:\/\/tieba\.baidu\.com\/c\/f\/forum\/forumGuide$ 'if type == "object" then delpaths([["hot_search"]]) else . end'
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tieba\.baidu\.com\/c\/f\/frs\/frsBottom\? 'delpaths([["card_activity"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/frs\/frsBottom$ 'delpaths([["card_activity"]])'
+http-response-jq ^https?:\/\/tieba\.baidu\.com\/c\/f\/frs\/frsBottom\? 'if type == "object" then delpaths([["card_activity"]]) else . end'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/frs\/frsBottom$ 'if type == "object" then delpaths([["card_activity"]]) else . end'
 
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["game_center"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["tools"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["task_list"]])'
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["vip_banner"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'if type == "object" then delpaths([["game_center"],["tools"],["task_list"],["vip_banner"]]) else . end'
 
 [Map Local]
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] ^https?:\/\/tieba\.baidu\.com\/mo\/q\/search\/startPage\? data-type=text data="{"no":0,"error":"success"}" header="Content-Type:application/json"
+^https?:\/\/tieba\.baidu\.com\/mo\/q\/search\/startPage\? data-type=text data="{"no":0,"error":"success"}" header="Content-Type:application/json"
 
 [Script]
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] ProtoBuf处理 = type=http-response,pattern=^https?:\/\/tieba(?:c)?\.baidu\.com\/c\/(f\/excellent\/personalized|f\/frs\/page|b\/ad\/adBid|f\/ad\/getFeedAd|f\/pb\/page|f\/frs\/generalTabList)\?cmd=\d+&format=protobuf,requires-body=1,binary-body-mode=1,script-path=https://kelee.one/Resource/JavaScript/Tieba/tieba-proto.js,timeout=10,argument="per_filter_video_thread={{{per_filter_video_thread}}}"
+ProtoBuf处理 = type=http-response,pattern=^https?:\/\/tieba(?:c)?\.baidu\.com\/c\/(f\/excellent\/personalized|f\/frs\/page|b\/ad\/adBid|f\/ad\/getFeedAd|f\/pb\/page|f\/frs\/generalTabList)\?cmd=\d+&format=protobuf,requires-body=1,binary-body-mode=1,script-path=https://kelee.one/Resource/JavaScript/Tieba/tieba-proto.js,timeout=10,max-size=-1,argument="per_filter_video_thread={{{per_filter_video_thread}}}"
 
 [MITM]
-# [DISABLED: 贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效] hostname = %APPEND% tiebac.baidu.com, tieba.baidu.com
+hostname = %APPEND% tiebac.baidu.com, tieba.baidu.com

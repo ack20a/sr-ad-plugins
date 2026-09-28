@@ -1,5 +1,5 @@
 #!name=YouTube 去广告 + 双语字幕
-#!desc=移除 YouTube 视频、瀑布流、搜索和 Shorts 中的广告，可隐藏底栏按钮，支持画中画和后台播放（可莉 YouTube 去广告）；提供双语字幕和歌词翻译（DualSubs）。需要开启 HTTPS 解密，模块已开启 HTTP/2 解密并阻断 YouTube 的 QUIC。不支持 tvOS。
+#!desc=移除 YouTube 视频、瀑布流、搜索和 Shorts 中的广告，可隐藏底栏按钮，支持画中画和后台播放（可莉 YouTube 去广告）；提供双语字幕和歌词翻译（DualSubs）。需要开启 HTTPS 解密，模块会阻断 YouTube 的 QUIC；不开 HTTP/2 解密（见 README）。不支持 tvOS。
 #!author=可莉🅥[https://github.com/luestr/ProxyResource/blob/main/README.md]、Maasea[https://github.com/Maasea]、VirgilClyne[https://github.com/VirgilClyne]、Choler[https://github.com/Choler]、DivineEngine[https://github.com/DivineEngine]、app2smile[https://github.com/app2smile]；Shadowrocket 合并: ack20a
 #!homepage=https://github.com/ack20a/sr-ad-plugins
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/YouTube.png
@@ -16,7 +16,7 @@
 
 [Rule]
 # ---- 合并时添加 ----
-# 阻断 QUIC，让 YouTube 回落到可以解密的 HTTP/2（对应 Loon 的 QUIC 回退保护）
+# 阻断 QUIC，让 YouTube 回落到可以解密的 TCP（对应 Loon 的 QUIC 回退保护）
 AND,((DOMAIN-SUFFIX,googlevideo.com),(PROTOCOL,UDP)),REJECT-NO-DROP
 AND,((DOMAIN,youtubei.googleapis.com),(PROTOCOL,UDP)),REJECT-NO-DROP
 
@@ -50,4 +50,3 @@ YouTube去广告 = type=http-response,pattern=^https:\/\/youtubei\.googleapis\.c
 
 [MITM]
 hostname = %APPEND% *.googlevideo.com, youtubei.googleapis.com, www.youtube.com, m.youtube.com, tv.youtube.com, music.youtube.com, -redirector*.googlevideo.com
-h2 = true
