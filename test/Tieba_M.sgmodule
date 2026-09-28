@@ -1,5 +1,5 @@
-#!name=百度贴吧去广告（排查 I）
-#!desc=【排查用，测完请删除】当前版本只保留 /c/s/sync 的 jq 改写
+#!name=百度贴吧去广告（排查 M）
+#!desc=【排查用，测完请删除】当前完整版（含全部 jq），只额外去掉 hotforum 这一条
 #!author=可莉🅥[https://github.com/luestr/ProxyResource/blob/main/README.md], app2smile[https://github.com/app2smile]；Shadowrocket 转换: ack20a
 #!homepage=https://hub.kelee.one
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Tieba.png
@@ -25,7 +25,7 @@ IP-CIDR,180.76.76.200/32,REJECT,no-resolve
 
 ^https:\/\/tieba\.baidu\.com\/c\/f\/forum\/getForumAlbum$ - reject-dict
 
-^http:\/\/c\.tieba\.baidu\.com\/c\/f\/forum\/hotforum$ - reject-dict
+# [排查 M 去掉] ^http:\/\/c\.tieba\.baidu\.com\/c\/f\/forum\/hotforum$ - reject-dict
 
 [Body Rewrite]
 http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["activity_switch"]])'
@@ -87,9 +87,30 @@ http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'if (getpath(["wl_c
 
 http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ '.index_tab_info |= map(select(.tab_name == "推荐")) | .top_level_navi |= {"推荐": .["推荐"], "侧边栏": .["侧边栏"], "关注": .["关注"]}'
 
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["url_map"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["user_agent_info"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["bubble_info"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["duxiaoman_entry"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["uc_card"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["finance_tab"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["vip_banner"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["ala_live_info"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["recom_naws_list"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["duxiaoman"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["user","consume_info"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'delpaths([["namoaixud_entry"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ 'if (getpath(["user","shake_ad_switch"]) | type == "object" and has("is_show")) then (setpath(["user","shake_ad_switch","is_show"]; 0)) else . end'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/u\/user\/profile$ '.custom_grid |= map(select(.title != "游戏大厅" and .title != "预约管理" and .title != "领话费" and .title != "短故事")) | .zone_info |= map(.common_func |= (if .common_func_noraml then .common_func_noraml |= map(select(.name != "创建智能体")) else . end)) | .zone_info |= map(select(.type != "commerce" and .type != "banner" and .type != "game"))'
 
+http-response-jq ^https?:\/\/tieba\.baidu\.com\/c\/f\/forum\/forumGuide$ 'delpaths([["hot_search"]])'
 
+http-response-jq ^https?:\/\/tieba\.baidu\.com\/c\/f\/frs\/frsBottom\? 'delpaths([["card_activity"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/frs\/frsBottom$ 'delpaths([["card_activity"]])'
 
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["game_center"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["tools"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["task_list"]])'
+http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths([["vip_banner"]])'
 
 [Map Local]
 ^https?:\/\/tieba\.baidu\.com\/mo\/q\/search\/startPage\? data-type=text data="{"no":0,"error":"success"}" header="Content-Type:application/json"
