@@ -55,4 +55,4 @@ http-response-jq ^https:\/\/api\.bilibili\.com\/pgc\/view\/v2\/app\/season\? 'de
 
 [MITM]
 hostname = %APPEND% biliverse.github.io, manga.bilibili.com, api.live.bilibili.com, api.vc.bilibili.com, app.bilibili.com, app.biliapi.net, app.biliapi.com, api.bilibili.com, api.biliapi.net, grpc.biliapi.net, cm.bilibili.com, adtrack.qianwen.com, tkio-redirect.solar-engine.com
-h2 = true
+# 上游的 h2 = true 已去掉：本仓库不开 HTTP/2 解密（开着时贴吧会登录失败），见 README
