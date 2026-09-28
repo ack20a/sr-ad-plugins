@@ -1,5 +1,5 @@
-#!name=百度贴吧去广告（排查 N）
-#!desc=【排查用，测完请删除】上游完整版（search/discover 也恢复），只去掉 hotforum 这一条
+#!name=百度贴吧去广告（排查 P）
+#!desc=【排查用，测完请删除】只解密 tiebac（不解密 tieba.baidu.com），保留全部 jq，去掉 hotforum 和 search/discover
 #!author=可莉🅥[https://github.com/luestr/ProxyResource/blob/main/README.md], app2smile[https://github.com/app2smile]；Shadowrocket 转换: ack20a
 #!homepage=https://hub.kelee.one
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Tieba.png
@@ -20,12 +20,12 @@ IP-CIDR,180.76.76.200/32,REJECT,no-resolve
 [URL Rewrite]
 ^https?:\/\/tiebac\.baidu\.com\/c\/f\/forum\/getInterestClassList$ - reject-dict
 
-^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
+# [排查去掉] ^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
 ^https?:\/\/tieba\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
 
 ^https:\/\/tieba\.baidu\.com\/c\/f\/forum\/getForumAlbum$ - reject-dict
 
-# [排查 N 去掉] ^http:\/\/c\.tieba\.baidu\.com\/c\/f\/forum\/hotforum$ - reject-dict
+# [排查去掉] ^http:\/\/c\.tieba\.baidu\.com\/c\/f\/forum\/hotforum$ - reject-dict
 
 [Body Rewrite]
 http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/s\/sync$ 'delpaths([["activity_switch"]])'
@@ -119,4 +119,4 @@ http-response-jq ^https?:\/\/tiebac\.baidu\.com\/c\/f\/sidebar\/home$ 'delpaths(
 ProtoBuf处理 = type=http-response,pattern=^https?:\/\/tieba(?:c)?\.baidu\.com\/c\/(f\/excellent\/personalized|f\/frs\/page|b\/ad\/adBid|f\/ad\/getFeedAd|f\/pb\/page|f\/frs\/generalTabList)\?cmd=\d+&format=protobuf,requires-body=1,binary-body-mode=1,script-path=https://kelee.one/Resource/JavaScript/Tieba/tieba-proto.js,timeout=10,argument="per_filter_video_thread={{{per_filter_video_thread}}}"
 
 [MITM]
-hostname = %APPEND% tiebac.baidu.com, tieba.baidu.com
+hostname = %APPEND% tiebac.baidu.com
