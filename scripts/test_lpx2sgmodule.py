@@ -88,12 +88,14 @@ class RoundTrip(unittest.TestCase):
         # scripts: count, script-path multiset, unique names
         self.assertEqual(len(up_sc), len(live("script")) + sc_maplocal + uc.get("script", 0))
         paths = lambda ls: sorted(re.search(r"script-path=\s*([^,\s]+)", l).group(1) for l in ls)  # noqa: E731
-        self.assertEqual(paths([l for l in up_sc if "script-path" in l]), paths(live("script")))
+        self.assertEqual(paths([l for l in up_sc if "script-path" in l
+                                and not any(l in u for s, u in unconv if s == "script")]), paths(live("script")))
         names = [l.split(" = ", 1)[0] for l in live("script")]
         self.assertEqual(len(names), len(set(names)))
 
         # MITM hosts
         uh = [h.strip() for l in up.get("mitm", []) if l.lower().startswith("hostname")
+              and not any(l in u for s, u in unconv if s == "mitm")
               for h in l.split("=", 1)[1].split(",") if h.strip()]
         sh = [h.strip() for l in sg.get("mitm", []) if l.startswith("hostname")
               for h in l.split("%APPEND%", 1)[1].split(",") if h.strip()]
@@ -124,9 +126,14 @@ class RoundTrip(unittest.TestCase):
     def test_tieba(self):
         s, u = self.check("Tieba_remove_ads")
         self.assertEqual((s["rule"], s["url_rewrite"], s["body_rewrite"], s["map_local"], s["script"],
-                          s["mitm_hosts"], s["argument"], len(u)), (2, 3, 77, 1, 1, 2, 1, 2))
-        # search/discover reject-dict logs the user out under Shadowrocket (LOCAL_DISABLE)
-        self.assertTrue(all("search\\/discover" in l and "disabled:" in l for _s, l in u), u)
+                          s["argument"], len(u)), (2, 1, 0, 0, 0, 1, 17))
+        # MITM of tiebac.baidu.com makes Tieba log the user out (LOCAL_DISABLE): no MITM at all,
+        # and every https tieba line is disabled; only rules + the plain-http hotforum stay live
+        self.assertTrue(all("disabled:" in l for _s, l in u), u)
+        with open(os.path.join(ROOT, "modules", "Tieba_remove_ads.sgmodule"), encoding="utf-8") as f:
+            live_lines = [l for l in f.read().splitlines() if l and not l.startswith("#") and not l.startswith("[")]
+        self.assertEqual(live_lines, ["DOMAIN,180.76.76.200,REJECT", "IP-CIDR,180.76.76.200/32,REJECT,no-resolve",
+                                      "^http:\\/\\/c\\.tieba\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ - reject-dict"])
 
     def test_bilibili(self):
         s, u = self.check("BiliBili.ADBlock")
@@ -316,13 +323,18 @@ class Units(unittest.TestCase):
 
     def test_local_disable(self):
         body = ("[Rewrite]\n^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/search\\/discover$ reject-dict\n"
-                "^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ reject-dict\n")
+                "^http:\\/\\/c\\.tieba\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ reject-dict\n"
+                "[Script]\nhttp-response ^https?:\\/\\/tieba(?:c)?\\.baidu\\.com\\/x script-path=https://s/a.js\n"
+                "[MitM]\nhostname=tiebac.baidu.com\n")
         out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Tieba_remove_ads.lpx")
-        self.assertEqual(section(out, "URL Rewrite"), ["^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ - reject-dict"])
+        self.assertEqual(section(out, "URL Rewrite"), ["^http:\\/\\/c\\.tieba\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ - reject-dict"])
+        self.assertEqual((section(out, "Script"), section(out, "MITM")), ([], []))
         self.assertIn("# [DISABLED: ", out)
-        self.assertEqual((s["url_rewrite"], len(u)), (1, 1))
+        self.assertIn("【Shadowrocket 精简版】", out)
+        self.assertEqual((s["url_rewrite"], s["script"], len(u)), (1, 0, 3))
         out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Other.lpx")  # other plugins untouched
-        self.assertEqual((s["url_rewrite"], len(u)), (2, 0))
+        self.assertEqual((s["url_rewrite"], s["script"], len(u)), (2, 1, 0))
+        self.assertEqual(section(out, "MITM"), ["hostname = %APPEND% tiebac.baidu.com"])
 
     def test_json_argument_style_and_max_size(self):
         body = ("[Argument]\nsw=switch, false, true, tag=S\nlang=select, \"zh-Hans\", \"off\", tag=L\n"

@@ -40,11 +40,22 @@ SCRIPT_KEYS = ("script-path|pattern|timeout|argument|requires-body|max-size|bina
 # Upstream lines that break the app under Shadowrocket, keyed by upstream file name.
 # (section, regex on the source line, reason). They are emitted commented out as
 # '# [DISABLED: reason] ...' and reported like UNCONVERTED entries.
+TIEBA_NO_MITM = "贴吧拒绝被解密的 tiebac/tieba.baidu.com 连接，解密后登录失败，不解密时此条不生效"
 LOCAL_DISABLE = {
+    # Tested on device: MITM of tiebac.baidu.com alone (no rewrite, no script) makes Tieba
+    # log the user out; app2smile's own module fails the same way. Drop the MITM and every
+    # line that only works on decrypted https traffic of those hosts.
     "Tieba_remove_ads.lpx": [
-        ("rewrite", r"/c\\/f\\/search\\/discover\$ ",
-         "Shadowrocket 下拦截 search/discover 会导致贴吧登录后被踢出"),
+        ("mitm", r"^hostname\s*=", TIEBA_NO_MITM),
+        ("rewrite", r"^\^https\??:\\/\\/tieba", TIEBA_NO_MITM),
+        ("script", r"\s\^https\??:\\/\\/tieba", TIEBA_NO_MITM),
     ],
+}
+
+# Appended to #!desc, keyed by upstream file name.
+LOCAL_DESC_NOTE = {
+    "Tieba_remove_ads.lpx": ("【Shadowrocket 精简版】贴吧会拒绝被解密的连接，解密后无法登录，"
+                             "所以本模块不解密，只保留域名规则，去广告效果有限。"),
 }
 
 # Per-upstream [Script] options, keyed by upstream file name.
@@ -668,6 +679,7 @@ def convert(text, url):
     kelee = "kelee.one" in url
     desc = header.get("desc", "").replace("\\n\\n", " ").replace("\\n", " ")
     desc += "（转换自 kelee.one Loon 插件，原作者见 author）" if kelee else "（转换自 Loon 插件，原作者见 author）"
+    desc += LOCAL_DESC_NOTE.get(upstream_name, "")
     tags = header.get("tag", "")
     category = tags.split(",")[0].strip() if tags else "去广告"
     h = [f"#!name={header.get('name', '')}",
