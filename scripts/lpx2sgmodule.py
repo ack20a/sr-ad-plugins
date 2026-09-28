@@ -37,6 +37,17 @@ SCRIPT_KEYS = ("script-path|pattern|timeout|argument|requires-body|max-size|bina
                "enable|tag|img-url|engine|cronexpr?|script-update-interval|wake-system|debug|ability")
 
 
+# Upstream lines that break the app under Shadowrocket, keyed by upstream file name.
+# (section, regex on the source line, reason). They are emitted commented out as
+# '# [DISABLED: reason] ...' and reported like UNCONVERTED entries.
+LOCAL_DISABLE = {
+    "Tieba_remove_ads.lpx": [
+        ("rewrite", r"/c\\/f\\/search\\/discover\$ ",
+         "Shadowrocket 下拦截 search/discover 会导致贴吧登录后被踢出"),
+    ],
+}
+
+
 class Unsupported(ValueError):
     pass
 
@@ -522,6 +533,7 @@ def convert(text, url):
              "script": 0, "host": 0, "mitm_hosts": 0, "argument": 0, "general": 0,
              "src_entries": 0, "unconverted": 0}
     unconverted, notes, names = [], [], set()
+    disable = LOCAL_DISABLE.get(url.split("?", 1)[0].rsplit("/", 1)[-1], [])
 
     # [Argument] first: every other section may reference {key}
     args = {}
@@ -603,6 +615,11 @@ def convert(text, url):
                         notes.append("[MitM] h2 kept (Shadowrocket >= 2.2.81 supports h2 in [MITM])")
                     else:
                         raise Unsupported("unsupported MITM key " + k)
+                reason = next((r for dsec, pat, r in disable if dsec == sec and re.search(pat, l)), None)
+                if reason:
+                    stats["unconverted"] += 1
+                    unconverted.append((sec, f"{l}  (disabled: {reason})"))
+                    res = [(s, f"# [DISABLED: {reason}] {c}") for s, c in res]
                 for s, c in res:
                     add(s, c)
                     if not c.startswith("#"):

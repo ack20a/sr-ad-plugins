@@ -123,7 +123,9 @@ class RoundTrip(unittest.TestCase):
     def test_tieba(self):
         s, u = self.check("Tieba_remove_ads")
         self.assertEqual((s["rule"], s["url_rewrite"], s["body_rewrite"], s["map_local"], s["script"],
-                          s["mitm_hosts"], s["argument"], len(u)), (2, 5, 77, 1, 1, 2, 1, 0))
+                          s["mitm_hosts"], s["argument"], len(u)), (2, 3, 77, 1, 1, 2, 1, 2))
+        # search/discover reject-dict logs the user out under Shadowrocket (LOCAL_DISABLE)
+        self.assertTrue(all("search\\/discover" in l and "disabled:" in l for _s, l in u), u)
 
     def test_bilibili(self):
         s, u = self.check("BiliBili.ADBlock")
@@ -253,6 +255,16 @@ class Units(unittest.TestCase):
         self.assertIn("#!homepage=https://example.com/x.plugin", out)
         out, *_ = conv("[Rule]\nDOMAIN, a.com, REJECT\n")
         self.assertIn("#!homepage=https://hub.kelee.one", out)
+
+    def test_local_disable(self):
+        body = ("[Rewrite]\n^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/search\\/discover$ reject-dict\n"
+                "^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ reject-dict\n")
+        out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Tieba_remove_ads.lpx")
+        self.assertEqual(section(out, "URL Rewrite"), ["^https?:\\/\\/tiebac\\.baidu\\.com\\/c\\/f\\/forum\\/hotforum$ - reject-dict"])
+        self.assertIn("# [DISABLED: ", out)
+        self.assertEqual((s["url_rewrite"], len(u)), (1, 1))
+        out, s, u, _ = conv(body, url="https://kelee.one/Tool/Loon/Lpx/Other.lpx")  # other plugins untouched
+        self.assertEqual((s["url_rewrite"], len(u)), (2, 0))
 
     def test_header_rewrite(self):
         out, *_ = conv("[Rewrite]\n^https://a response-header-add X-A 1 X-B 2\n^https://b header-del Cookie\n")

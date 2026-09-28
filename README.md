@@ -50,6 +50,12 @@
 
 **不支持的内容**：`generic` 脚本、`jq-path=`、非 200 的 mock 状态码、复杂的 Loon 表达式（比如 `as item`、`reject(404)`）等。这些条目会以 `# [UNCONVERTED]` 注释的形式留在模块里，同时输出到 stderr，不会被悄悄丢掉。本仓库现有的 4 个模块里没有这样的条目。
 
+**和上游不同的地方**：有些上游规则在 Shadowrocket 下会出问题。这些规则登记在 `scripts/lpx2sgmodule.py` 的 `LOCAL_DISABLE` 里，转换时会以 `# [DISABLED: 原因]` 注释的形式留在模块里，同步上游后也会自动保持注释状态。目前有：
+
+| 模块 | 注释掉的规则 | 原因 |
+| --- | --- | --- |
+| 百度贴吧去广告 | `tiebac.baidu.com` / `tieba.baidu.com` 的 `/c/f/search/discover` → `reject-dict` | 在 Shadowrocket 下会导致贴吧一登录就被踢出（已在真机上逐条排查确认）。去掉后只是搜索发现页不再被拦截，去广告功能不受影响 |
+
 ## 目录结构
 
 ```

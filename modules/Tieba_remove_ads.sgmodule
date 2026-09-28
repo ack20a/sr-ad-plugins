@@ -20,8 +20,8 @@ IP-CIDR,180.76.76.200/32,REJECT,no-resolve
 [URL Rewrite]
 ^https?:\/\/tiebac\.baidu\.com\/c\/f\/forum\/getInterestClassList$ - reject-dict
 
-^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
-^https?:\/\/tieba\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
+# [DISABLED: Shadowrocket 下拦截 search/discover 会导致贴吧登录后被踢出] ^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
+# [DISABLED: Shadowrocket 下拦截 search/discover 会导致贴吧登录后被踢出] ^https?:\/\/tieba\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
 
 ^https:\/\/tieba\.baidu\.com\/c\/f\/forum\/getForumAlbum$ - reject-dict
 
