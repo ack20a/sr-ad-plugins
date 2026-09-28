@@ -1,5 +1,5 @@
-#!name=百度贴吧去广告（排查 A）
-#!desc=【排查用，测完请删除】去掉全部 [Body Rewrite]（sync 和「我的」页面的 jq 改写），其余不变
+#!name=百度贴吧去广告（排查 E）
+#!desc=【排查用，测完请删除】只保留 [Rule]、[Script] 和 tiebac.baidu.com 的 MITM（去掉所有 URL 重写、Map Local、Body Rewrite）
 #!author=可莉🅥[https://github.com/luestr/ProxyResource/blob/main/README.md], app2smile[https://github.com/app2smile]；Shadowrocket 转换: ack20a
 #!homepage=https://hub.kelee.one
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Tieba.png
@@ -17,29 +17,8 @@
 DOMAIN,180.76.76.200,REJECT
 IP-CIDR,180.76.76.200/32,REJECT,no-resolve
 
-[URL Rewrite]
-^https?:\/\/tiebac\.baidu\.com\/c\/f\/forum\/getInterestClassList$ - reject-dict
-
-^https?:\/\/tiebac\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
-^https?:\/\/tieba\.baidu\.com\/c\/f\/search\/discover$ - reject-dict
-
-^https:\/\/tieba\.baidu\.com\/c\/f\/forum\/getForumAlbum$ - reject-dict
-
-^http:\/\/c\.tieba\.baidu\.com\/c\/f\/forum\/hotforum$ - reject-dict
-
-[Body Rewrite]
-
-
-
-
-
-
-
-[Map Local]
-^https?:\/\/tieba\.baidu\.com\/mo\/q\/search\/startPage\? data-type=text data="{"no":0,"error":"success"}" header="Content-Type:application/json"
-
 [Script]
 ProtoBuf处理 = type=http-response,pattern=^https?:\/\/tieba(?:c)?\.baidu\.com\/c\/(f\/excellent\/personalized|f\/frs\/page|b\/ad\/adBid|f\/ad\/getFeedAd|f\/pb\/page|f\/frs\/generalTabList)\?cmd=\d+&format=protobuf,requires-body=1,binary-body-mode=1,script-path=https://kelee.one/Resource/JavaScript/Tieba/tieba-proto.js,timeout=10,argument="per_filter_video_thread={{{per_filter_video_thread}}}"
 
 [MITM]
-hostname = %APPEND% tiebac.baidu.com, tieba.baidu.com
+hostname = %APPEND% tiebac.baidu.com
